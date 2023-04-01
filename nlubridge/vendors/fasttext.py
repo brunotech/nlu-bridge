@@ -94,9 +94,7 @@ class FastText(Vendor):
             prob = result[1][0]
             intents.append(intent)
             probs.append(prob)
-        if return_probs:
-            return intents, probs
-        return intents
+        return (intents, probs) if return_probs else intents
 
     def _convert(self, dataset):
         lines = []

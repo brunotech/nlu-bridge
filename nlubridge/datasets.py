@@ -76,9 +76,7 @@ class NLUdataset:
                 cropped_intents = [intent[:max_intent_length] for intent in intents]
                 if len(set(intents)) > len(set(cropped_intents)):
                     warnings.warn(
-                        "Intent names are not unique on first {} characters".format(
-                            max_intent_length
-                        )
+                        f"Intent names are not unique on first {max_intent_length} characters"
                     )
                 intents = cropped_intents
             # Make copy so typing is consistent (makes sure we don't accidentally add
@@ -93,7 +91,7 @@ class NLUdataset:
             self.intent_frequencies = collections.Counter(self.intents)
 
         if not entities:
-            self.entities = [list() for _ in texts]
+            self.entities = [[] for _ in texts]
             self.unique_entities = []
             self.n_entities = 0
         else:
@@ -101,17 +99,15 @@ class NLUdataset:
 
         if entities is not None:
             it = itertools.chain.from_iterable(entities)
-            unique_entities = []
-            for each in it:
-                if isinstance(each, dict) and EntityKeys.TYPE in each:
-                    unique_entities.append(each[EntityKeys.TYPE])
+            unique_entities = [
+                each[EntityKeys.TYPE]
+                for each in it
+                if isinstance(each, dict) and EntityKeys.TYPE in each
+            ]
             self.unique_entities = list(dict.fromkeys(unique_entities))
             self.n_entities = len(self.unique_entities)
 
-        self.data = [
-            (text, intent, entities)
-            for text, intent, entities in zip(self.texts, self.intents, self.entities)
-        ]
+        self.data = list(zip(self.texts, self.intents, self.entities))
         # TODO: Can we handle random seed outside this class to avoid confusions
         #  when making implicit copies like in sample() method?
         random.seed(seed)
@@ -126,7 +122,7 @@ class NLUdataset:
             entities = self.entities[key]
             return NLUdataset(texts, intents, entities)
 
-        elif isinstance(key, collections.abc.Sequence) or isinstance(key, np.ndarray):
+        elif isinstance(key, (collections.abc.Sequence, np.ndarray)):
             texts = [self.texts[each] for each in key]
             intents = [self.intents[each] for each in key]
             entities = [self.entities[each] for each in key]
@@ -155,8 +151,7 @@ class NLUdataset:
             intents.extend(dataset.intents)
             entities.extend(dataset.entities)
 
-        joint_dataset = cls(texts, intents, entities)
-        return joint_dataset
+        return cls(texts, intents, entities)
 
     @property
     def name(self):
@@ -234,8 +229,7 @@ class NLUdataset:
         :type n: int
         """
         allowed = self.unique_intents[:n]
-        ds = self.filter_by_intent_name(allowed=allowed)
-        return ds
+        return self.filter_by_intent_name(allowed=allowed)
 
     def clip_by_intent_frequency(self, max_frequency, min_frequency=None):
         """
@@ -360,10 +354,7 @@ class NLUdataset:
             whatever is passed) to the sklearn train_test_split
             method.
             """
-            if stratification == "intents":
-                stratify = self.intents
-            else:
-                stratify = stratification
+            stratify = self.intents if stratification == "intents" else stratification
             return stratify
 
         (
@@ -479,8 +470,7 @@ def from_csv(filepath, text_col, intent_col) -> NLUdataset:
         key = list(columns.keys())[intent_col]
         columns[intent_col] = [key, *columns[key]]
 
-    ds = NLUdataset(columns[text_col], columns[intent_col])
-    return ds
+    return NLUdataset(columns[text_col], columns[intent_col])
 
 
 def from_json(

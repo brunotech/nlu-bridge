@@ -53,9 +53,7 @@ class TelekomModel(Vendor):
         intents, probs = self.clf.predict(X, return_probs=True)
         intents = list(intents)
         probs = list(probs)
-        if return_probs:
-            return intents, probs
-        return intents
+        return (intents, probs) if return_probs else intents
 
 
 class TelekomModel2(Vendor):
@@ -121,7 +119,7 @@ class Model1:
 
     def fit(self, X, y=None):  # noqa D102
         logger.debug("Training started")
-        X_with_intent = [x for x, y in zip(X, y) if not y == self.none_class_]
+        X_with_intent = [x for x, y in zip(X, y) if y != self.none_class_]
         if self.anomaly_clf_nu_ > 0:
             self.trained_anomaly_clf = self.anomaly_clf.fit(X_with_intent)
         self.trained_intent_clf = self._hyper_fit(
@@ -146,10 +144,7 @@ class Model1:
         else:
             intents = y_intent
 
-        if return_probs:
-            return intents, probs
-
-        return intents
+        return (intents, probs) if return_probs else intents
 
     def _hyper_fit(self, classifier, param_space, X, y):  # noqa D102
         search = GridSearchCV(
@@ -172,16 +167,13 @@ class Model1:
         return search
 
     def load(self, filename="model1"):  # noqa D102
-        f = open(self.models_path + filename, "rb")
-        tmp_dict = pickle.load(f)
-        f.close()
-
+        with open(self.models_path + filename, "rb") as f:
+            tmp_dict = pickle.load(f)
         self.__dict__.update(tmp_dict)
 
     def save(self, filename="model1"):  # noqa D102
-        f = open(self.models_path + filename, "wb")
-        pickle.dump(self.__dict__, f, 2)
-        f.close()
+        with open(self.models_path + filename, "wb") as f:
+            pickle.dump(self.__dict__, f, 2)
 
 
 class Model2:
@@ -204,12 +196,12 @@ class Model2:
     def fit(self, X, y=None):  # noqa D102
         logger.debug("Training started")
 
-        self.classes_ = list(set(y) - set([self.none_class_]))
+        self.classes_ = list(set(y) - {self.none_class_})
 
         self.key_words = {}
 
         for c in self.classes_:
-            if not c == self.none_class_:
+            if c != self.none_class_:
                 X_c = [x for x, y_c in zip(X, y) if c == y_c]
 
                 self.tfidf_vectorizer.fit(X_c)
@@ -231,13 +223,13 @@ class Model2:
         logger.debug("Prediction started")
         y_pred = []
 
-        for i, x in enumerate(X):
+        for x in X:
             matches = {}
             for c in self.classes_:
                 predict = self._get_n_gram_matches(x, self.key_words[c])
                 if len(predict) > 0:
                     matches[c] = predict[0]["distance"]
-            if len(matches) > 0:
+            if matches:
                 y_pred.append(max(matches, key=matches.get))
             else:
                 y_pred.append(self.none_class_)
@@ -246,16 +238,13 @@ class Model2:
         return y_pred
 
     def load(self):  # noqa D102
-        f = open(self.filename, "rb")
-        tmp_dict = pickle.load(f)
-        f.close()
-
+        with open(self.filename, "rb") as f:
+            tmp_dict = pickle.load(f)
         self.__dict__.update(tmp_dict)
 
     def save(self):  # noqa D102
-        f = open(self.filename, "wb")
-        pickle.dump(self.__dict__, f, 2)
-        f.close()
+        with open(self.filename, "wb") as f:
+            pickle.dump(self.__dict__, f, 2)
 
     def _get_n_gram_matches(self, inputString, options, isReordered=False):  # noqa D102
         max_n_gram = 4
@@ -273,29 +262,26 @@ class Model2:
 
     def _create_n_gram(self, inputWords, n, reorder=False):  # noqa D102
         ngrams = []
-        for i in range(0, len(inputWords) + 1 - n):
+        for i in range(len(inputWords) + 1 - n):
             strings = inputWords[i : i + n]
             if reorder:
                 permutations = list(itertools.permutations(strings))
-                for p in permutations:
-                    ngrams.append(" ".join(p))
+                ngrams.extend(" ".join(p) for p in permutations)
             else:
                 ngrams.append(" ".join(strings))
         return ngrams
 
     def _norm_best_match_substring(self, item, options, cutoff=0.75):  # noqa D102
-        tuples = []
-        for i in options:
-            tuples.append(
-                {
-                    "string": item,
-                    "value": i,
-                    "distance": (
-                        (fuzz.token_sort_ratio(i.lower(), item.lower())) / 100.0
-                    ),
-                }
-            )
+        tuples = [
+            {
+                "string": item,
+                "value": i,
+                "distance": (
+                    (fuzz.token_sort_ratio(i.lower(), item.lower())) / 100.0
+                ),
+            }
+            for i in options
+        ]
         sortedOptions = sorted(tuples, key=lambda x: x["distance"], reverse=True)
 
-        filteredOptions = [x for x in sortedOptions if x["distance"] > cutoff]
-        return filteredOptions
+        return [x for x in sortedOptions if x["distance"] > cutoff]

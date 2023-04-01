@@ -92,8 +92,7 @@ def load_data(
             tag_mapper = hugging_ds.features[iob_col].feature
         except KeyError:
             raise ValueError(
-                "hugging_ds must provide entity tags in a ClassLabel accessible "
-                "through the '{}' feature".format(iob_col)
+                f"hugging_ds must provide entity tags in a ClassLabel accessible through the '{iob_col}' feature"
             )
         texts, entities = iob2dict_batch(token_seqs, ner_tag_seqs, tag_mapper)
     else:
@@ -106,9 +105,7 @@ def load_data(
         except KeyError:
             raise ValueError("hugging_ds must have a 'text' feature")
 
-    ds = NLUdataset(texts, intents, entities)
-
-    return ds
+    return NLUdataset(texts, intents, entities)
 
 
 def iob2dict_batch(token_seqs, iob_seqs, tag_mapper):
@@ -136,14 +133,11 @@ def iob2dict(tokens, ner_tags, tag_mapper):
     """
 
     def need_blank(token, len_text):
-        if (
-            token.startswith("'")
-            or (token in [":", ".", ",", ";", "?", "!", "..."])
-            or (len_text == 0)
-        ):
-            return False
-        else:
-            return True
+        return (
+            not token.startswith("'")
+            and token not in [":", ".", ",", ";", "?", "!", "..."]
+            and len_text != 0
+        )
 
     entities = []
     text = ""
@@ -173,7 +167,7 @@ def iob2dict(tokens, ner_tags, tag_mapper):
         text += token
 
     # make sure entities at the end of an utterance are completed
-    if not tag == "O":
+    if tag != "O":
         entity["end"] = len(text)
         entities.append(entity)
 

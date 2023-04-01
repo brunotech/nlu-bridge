@@ -70,7 +70,7 @@ class Rasa(Vendor):
         :param dataset: Training data
         :return: It's own Rasa object
         """
-        self.config = self.config if self.config else DEFAULT_INTENT_RASA_CONFIG_PATH
+        self.config = self.config or DEFAULT_INTENT_RASA_CONFIG_PATH
         training_data = self._convert(dataset)
         trainer = Trainer(config.load(self.config))
         self.interpreter = trainer.train(training_data)
@@ -149,9 +149,7 @@ class Rasa(Vendor):
             prob = result.get(INTENT, {}).get(PREDICTED_CONFIDENCE_KEY)
             intents.append(intent)
             probs.append(prob)
-        if return_probs:
-            return intents, probs
-        return intents
+        return (intents, probs) if return_probs else intents
 
     @staticmethod
     def _convert(dataset: NLUdataset) -> TrainingData:
@@ -278,12 +276,12 @@ def write_data(
         messages.append(message)
 
     training_data = TrainingData(training_examples=messages)
-    if format == "yml":
+    if format == "json":
+        mrj = RasaWriter()
+        mrj.dump(filepath, training_data)
+    elif format == "yml":
         mry = RasaYAMLWriter()
         md = mry.training_data_to_dict(training_data)
         write_yaml(md, filepath)
-    elif format == "json":
-        mrj = RasaWriter()
-        mrj.dump(filepath, training_data)
     else:
         raise ValueError(f"Unsupported format {format!r}")

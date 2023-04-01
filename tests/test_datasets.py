@@ -154,8 +154,7 @@ def get_subsampling_ds():
         + ["intent_3"] * 4500
         + ["intent_4"] * 500
     )
-    ds = SyntheticDataset(n_samples=len(intents), intents=intents)
-    return ds
+    return SyntheticDataset(n_samples=len(intents), intents=intents)
 
 
 def test_subsample_by_intent_frequency():

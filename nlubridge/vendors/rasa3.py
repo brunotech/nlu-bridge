@@ -73,7 +73,7 @@ class Rasa3(Vendor):
         :param dataset: Training data
         :return: It's own Rasa3 object
         """
-        self.config = self.config if self.config else DEFAULT_INTENT_RASA_CONFIG_PATH
+        self.config = self.config or DEFAULT_INTENT_RASA_CONFIG_PATH
         with tempfile.TemporaryDirectory() as tmpdirname:
             nlu_yml_file = os.path.join(
                 pathlib.Path(tmpdirname), "nlu.yml"
@@ -165,11 +165,7 @@ class Rasa3(Vendor):
             prob = result.get(INTENT, {}).get(PREDICTED_CONFIDENCE_KEY)
             intents.append(intent)
             probs.append(prob)
-        if return_probs:
-            res = (intents, probs)
-        else:
-            res = intents
-        return res
+        return (intents, probs) if return_probs else intents
 
 
 def load_data(filepath: Union[str, pathlib.Path], format: str = "yml") -> NLUdataset:
@@ -251,12 +247,12 @@ def write_data(
         messages.append(message)
 
     training_data = TrainingData(training_examples=messages)
-    if format == "yml":
+    if format == "json":
+        mrj = RasaWriter()
+        mrj.dump(filepath, training_data)
+    elif format == "yml":
         mry = RasaYAMLWriter()
         md = mry.training_data_to_dict(training_data)
         write_yaml(md, filepath)
-    elif format == "json":
-        mrj = RasaWriter()
-        mrj.dump(filepath, training_data)
     else:
         raise ValueError(f"Unsupported format {format!r}")

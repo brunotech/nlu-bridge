@@ -42,10 +42,7 @@ class SpacyClassifier(Vendor):
         examples = []
         for text, intent, _ in dataset:
             doc = self.nlp.make_doc(text)
-            cats = {
-                intent: True if intent == each else False
-                for each in dataset.unique_intents
-            }
+            cats = {intent: intent == each for each in dataset.unique_intents}
             example = Example.from_dict(doc, {"cats": cats})
             examples.append(example)
         return examples
@@ -56,7 +53,7 @@ class SpacyClassifier(Vendor):
 
         get_examples = lambda: examples  # noqa: E731
         optimizer = self.nlp.initialize(get_examples)
-        for itn in range(self.n_iter):
+        for _ in range(self.n_iter):
             random.shuffle(examples)
             for example in examples:
                 self.nlp.update([example], sgd=optimizer)
@@ -71,6 +68,4 @@ class SpacyClassifier(Vendor):
             prob = doc.cats[intent]
             intents.append(intent)
             probs.append(prob)
-        if return_probs:
-            return intents, probs
-        return intents
+        return (intents, probs) if return_probs else intents

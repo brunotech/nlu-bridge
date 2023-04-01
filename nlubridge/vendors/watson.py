@@ -169,18 +169,16 @@ class Watson(Vendor):
         if not self._is_trained:
             raise RuntimeError("Watson Assistant workspace has not yet been trained")
 
-        if not self.use_bulk:
-            responses = self._get_wa_response_in_session(dataset)
-        else:
-            responses = self._get_wa_response_in_batches(dataset)
-
+        responses = (
+            self._get_wa_response_in_batches(dataset)
+            if self.use_bulk
+            else self._get_wa_response_in_session(dataset)
+        )
         for text, result in zip(dataset.texts, responses):
             intent, prob = self._extract_top_intent_from_result(result, n_best_intents)
             intents.append(intent)
             probs.append(prob)
-        if return_probs:
-            return intents, probs
-        return intents
+        return (intents, probs) if return_probs else intents
 
     @staticmethod
     def validate_text(text):
@@ -197,7 +195,7 @@ class Watson(Vendor):
         val_text = text
         not_allowed = ["\n", "\t", "\r"]
         if len(val_text) > 2048:
-            val_text = val_text[0:2047]
+            val_text = val_text[:2047]
         if any(x in val_text for x in not_allowed):
             for char in not_allowed:
                 val_text = val_text.replace(char, " ")
@@ -228,18 +226,16 @@ class Watson(Vendor):
             if text.lower() in exist_texts:
                 # it's a duplicate text
                 continue
-            else:
-                exist_texts.append(text.lower())
-                try:
-                    intents_examples[intent].append({"text": text})
-                except KeyError:
-                    intents_examples[intent] = [{"text": text}]
+            exist_texts.append(text.lower())
+            try:
+                intents_examples[intent].append({"text": text})
+            except KeyError:
+                intents_examples[intent] = [{"text": text}]
 
-        data_wa_format = [
+        return [
             {"intent": intent, "examples": examples}
             for (intent, examples) in intents_examples.items()
         ]
-        return data_wa_format
 
     def _get_workspace_id(self):
         response = self.assistant.list_workspaces().get_result()
@@ -370,20 +366,15 @@ class Watson(Vendor):
 
     @staticmethod
     def _extract_top_intent_from_result(wa_result, n_best_intents):
-        result_intents = wa_result.get("intents")
-        if result_intents:
+        if result_intents := wa_result.get("intents"):
             if n_best_intents == 1:
                 intent = result_intents[0].get("intent")
                 prob = result_intents[0].get("confidence")
             else:
                 intent = []
                 prob = []
-                n_best_max = (
-                    len(result_intents)
-                    if n_best_intents >= len(result_intents)
-                    else n_best_intents
-                )
-                for k in range(0, n_best_max):
+                n_best_max = min(n_best_intents, len(result_intents))
+                for k in range(n_best_max):
                     intent.append(result_intents[k].get("intent"))
                     prob.append(result_intents[k].get("confidence"))
         elif wa_result.get("error"):

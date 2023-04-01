@@ -72,6 +72,4 @@ class TfidfIntentClassifier(Vendor):
         intents = self.clf.classes_[pred_idxs]
         intents = list(intents)
 
-        if return_probs:
-            return intents, winner_class_probs
-        return intents
+        return (intents, winner_class_probs) if return_probs else intents

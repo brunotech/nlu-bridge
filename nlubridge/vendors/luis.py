@@ -138,8 +138,7 @@ class LUIS(Vendor):
         }
 
         response = self.requests.post(self.endpoint, data=body)
-        app_id = response.json()
-        return app_id
+        return response.json()
 
     def _delete_application(self, app_id=None):
         """
@@ -279,8 +278,7 @@ class LUIS(Vendor):
         """Publish a specific version of the application."""
         url = self._get_base_url("publish", add_version=False)
         body = {"versionId": self.version, "isStaging": staging}
-        response = self.requests.post(url, data=body)
-        return response
+        return self.requests.post(url, data=body)
 
     def train_intent(self, dataset):
         """Train intent classifier."""
@@ -340,9 +338,7 @@ class LUIS(Vendor):
             calls_per_second = n_calls / (time.time() - start_time + 0.0001)
             logger.debug(f"Calls per second: {calls_per_second}")
 
-        if return_probs:
-            return intent, prob
-        return intent
+        return (intent, prob) if return_probs else intent
 
     def test_intent(self, dataset, return_probs=False):
         """Test intent classifier."""
@@ -369,7 +365,7 @@ def load_data(filepath) -> NLUdataset:
     """
     with open(filepath, "r") as f:
         examples = json.load(f)
-    dataset = from_json(
+    return from_json(
         json.dumps(examples, ensure_ascii=False),
         text_key="text",
         intent_key="intentName",
@@ -379,4 +375,3 @@ def load_data(filepath) -> NLUdataset:
         entity_end_key="endCharIndex",
         end_index_add_1=True,
     )
-    return dataset
